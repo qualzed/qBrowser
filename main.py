@@ -55,13 +55,22 @@ class SettingsWindow(QDialog):
         
         self.language_combo = QComboBox()
         self.language_combo.addItems(["English", "Русский"])
-        self.language_combo.setCurrentText("Русккий" if current_language == "ru" else "English")
+        self.language_combo.setCurrentText("Русский" if current_language == "ru" else "English")
         self.language_combo.currentTextChanged.connect(self.on_language_changed)
         layout.addWidget(self.language_combo)
+        
+        self.github_button = QPushButton("Open Source")
+        self.github_button.clicked.connect(self.opensrc)
+        layout.addWidget(self.github_button)
         
         layout.addStretch()
         
         self.setLayout(layout)
+    
+    def opensrc(self):
+        main_window = self.parent()
+        if main_window:
+            main_window.add_new_tab(QUrl("https://github.com/qualzed/qBrowser"))
     
     def on_language_changed(self, text):
         lang_map = {"English": "en", "Русский": "ru"}
@@ -105,8 +114,8 @@ class MainWindow(QMainWindow):
         
         self.search_bar = QLineEdit(self)
         self.search_bar.setPlaceholderText(get_locale("gstr"))
-        self.search_bar.returnPressed.connect(self.on_search)
         self.search_bar.setFixedWidth(400)
+        self.search_bar.returnPressed.connect(self.on_search)
         self.toolbar.addWidget(self.search_bar)
         
         self.search_button = QPushButton(get_locale("gsearch"), self)
@@ -134,9 +143,9 @@ class MainWindow(QMainWindow):
         
         self.add_new_tab()
     
-    def add_new_tab(self):
+    def add_new_tab(self, url=None):
         browser = QWebEngineView()
-        browser.setUrl(QUrl(search_system))
+        browser.setUrl(url if url else QUrl(search_system))
         browser.titleChanged.connect(self.update_tab_title)
         browser.loadFinished.connect(self.update_actions)
         index = self.tab_widget.addTab(browser, get_locale("ntab"))
@@ -188,8 +197,9 @@ class MainWindow(QMainWindow):
             self.update_actions()
     
     def close_tab(self, index):
-        if self.tab_widget.count() > 1:
-            self.tab_widget.removeTab(index)
+        if self.tab_widget.count() == 1:
+            exit()
+        self.tab_widget.removeTab(index)
         self.update_actions()
     
     def changelocale(self):
