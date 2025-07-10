@@ -1,8 +1,9 @@
 import sys
 import os
+from functools import partial
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QAction, QIcon
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget, QComboBox, QWidget, QSpacerItem, QSizePolicy, QLineEdit, QPushButton, QDialog, QVBoxLayout, QLabel
+from PyQt6.QtWidgets import QApplication, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QSpacerItem, QSizePolicy, QLineEdit, QPushButton, QDialog, QVBoxLayout, QLabel
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from locales.ru import ru
 from locales.en import en
@@ -11,6 +12,7 @@ from qb.voice import voice
 search_system = 'https://google.com'
 current_language = "ru"
 config_path="config/qb.cfg"
+history_path="user/history.qb"
 
 def get_locale(key):
     global current_language
@@ -69,19 +71,33 @@ class SettingsWindow(QDialog):
         self.language_combo.setCurrentText("Русский" if current_language == "ru" else "English")
         self.language_combo.currentTextChanged.connect(self.on_language_changed)
         layout.addWidget(self.language_combo)
-        
-        self.github_button = QPushButton("Open Source")
-        self.github_button.clicked.connect(self.opensrc)
+
+        self.github_button = QPushButton("Source Code")
+        self.github_button.clicked.connect(partial(self.openlink, "https://github.com/qualzed/qBrowser"))
         layout.addWidget(self.github_button)
+
+        self.history_button = QPushButton("History")
+        self.history_button.clicked.connect(self.OpenHistory)
+        layout.addWidget(self.history_button)
+
+        self.support_button = QPushButton("Support me (donationalerts.com)")
+        self.support_button.clicked.connect(partial(self.openlink, "https://www.donationalerts.com/r/qualzed"))
+        layout.addWidget(self.support_button)
         
         layout.addStretch()
         
         self.setLayout(layout)
     
-    def opensrc(self):
+    def OpenHistory(self):
         main_window = self.parent()
         if main_window:
-            main_window.add_new_tab(QUrl("https://github.com/qualzed/qBrowser"))
+            history_window = HistoryWindow(main_window, self)
+            history_window.exec()
+
+    def openlink(self, link):
+        main_window = self.parent()
+        if main_window:
+            main_window.add_new_tab(QUrl(link))
     
     def on_language_changed(self, text):
         lang_map = {"English": "en", "Русский": "ru"}
@@ -92,11 +108,31 @@ class SettingsWindow(QDialog):
             if main_window:
                 main_window.update_ui_texts()
 
+class HistoryWindow(QDialog):
+    def __init__(self, main_window, parent=None):
+        super().__init__(parent)
+        self.main_window = main_window
+        self.setWindowTitle("History")
+        self.setGeometry(100, 100, 600, 600)
+        self.setModal(True)
+        layout = QVBoxLayout()
+
+        lines = open(history_path, 'r', encoding='utf-8').readlines() if os.path.exists(history_path) else []
+        self.hst = QListWidget()
+        self.hst.addItems([line.strip() for line in lines])
+        self.hst.currentTextChanged.connect(self.text_changed)
+        layout.addWidget(self.hst)
+
+        self.setLayout(layout)
+
+    def text_changed(self, s):
+        if self.main_window and s:
+            self.main_window.add_new_tab(QUrl(s))
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("qb")
+        self.setWindowTitle("qBrowser")
         x,y = get_current_resolution()
         self.setGeometry(100, 100, x, y)
         self.setWindowIcon(QIcon("icon.png"))
@@ -126,7 +162,6 @@ class MainWindow(QMainWindow):
         
         self.search_bar = QLineEdit(self)
         self.search_bar.setPlaceholderText(get_locale("gstr"))
-        self.search_bar.setFixedWidth(400)
         self.search_bar.returnPressed.connect(self.on_search)
         self.toolbar.addWidget(self.search_bar)
         
@@ -149,7 +184,7 @@ class MainWindow(QMainWindow):
         self.new_tab_action.triggered.connect(self.on_new_tab)
         
         self.settings_action = QAction("⚙️", self)
-        self.settings_action.triggered.connect(self.changelocale)
+        self.settings_action.triggered.connect(self.opensettings)
         
         self.toolbar.addAction(self.home_action)
         self.toolbar.addAction(self.new_tab_action)
@@ -210,8 +245,13 @@ class MainWindow(QMainWindow):
         if current_browser and query:
             search_url = f"https://www.google.com/search?q={query}"
             current_browser.setUrl(QUrl(search_url))
+            self.AddHistory(search_url)
             self.update_actions()
     
+    def AddHistory(self, url):
+        with open(history_path, 'a+', encoding='utf-8') as f: 
+            f.write(url + "\n")
+
     def callvoice(self):
         query = voice()
         current_browser = self.tab_widget.currentWidget()
@@ -221,11 +261,11 @@ class MainWindow(QMainWindow):
 
     def close_tab(self, index):
         if self.tab_widget.count() == 1:
-            exit()
+            exit(0)
         self.tab_widget.removeTab(index)
         self.update_actions()
     
-    def changelocale(self):
+    def opensettings(self):
         settings_window = SettingsWindow(self)
         settings_window.exec()
     
@@ -242,10 +282,24 @@ class MainWindow(QMainWindow):
             if current_title == "Loading..." or current_title == get_locale("ntab"):
                 self.tab_widget.setTabText(i, get_locale("ntab"))
 
+
+
     def closeEvent(self, a0):
         x = self.width()
         y = self.height()
         set_resolution(x,y)
+        return super().closeEvent(a0)
+
+    def resizeEvent(self, a0):
+        x = self.width()
+        y = self.width()
+        self.search_bar.setMinimumWidth(int(x / 2.0))
+        self.search_bar.setMaximumWidth(int(x))
+
+        if(x < 800):
+            self.setGeometry(100, 100, 800, y)
+
+        return super().resizeEvent(a0)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
