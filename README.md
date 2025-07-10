@@ -1,6 +1,6 @@
 # qBrowser
-![icon](https://github.com/user-attachments/assets/b18500a8-a313-4e33-8fd5-97223063a6ce)
-![image](https://github.com/user-attachments/assets/99406c2c-84b9-4024-97cf-817107a4ede8)
+![icon](https://github.com/user-attachments/assets/f71015ed-ef76-4e8e-adfa-a3dddac31179)
+![image](https://github.com/user-attachments/assets/8b8cf81f-fc2d-4912-a3f7-d7b36edae00e)
 ____
 "qualzed browser" or "qb". I am creating this project to understand how PyQt works on Python. 
 Part of the code was made using a neural network, the other part of the code was made by me. In the future, I plan to do it myself, improve, correct and update.
