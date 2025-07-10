@@ -6,33 +6,35 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget, QComboBox, QW
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from locales.ru import ru
 from locales.en import en
-
+from qb.voice import voice
 
 search_system = 'https://google.com'
 current_language = "ru"
-
+config_path="config/qb.cfg"
 
 def get_locale(key):
     global current_language
     locales = {"ru": dict(ru), "en": dict(en)}
     return locales.get(current_language, locales["ru"]).get(key, "не найден")
 
-
-def set_language(lang, config_path="config/qb.cfg"):
+def set_language(lang):
     global current_language
-    match lang:
-        case "en":
-            current_language = "en"
-        case "ru":
-            current_language = "ru"
-        case _:
-            return
+    match lang: 
+        case "en": current_language = "en"
+        case "ru": current_language = "ru"
+        case _: return
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
-    with open(config_path, "w", encoding="utf-8") as f:
-        f.write(f"language={current_language}\n")
+    lines = open(config_path, 'r', encoding='utf-8').readlines() if os.path.exists(config_path) else ['']
+    lines[0] = f"language={current_language}\n"
+    with open(config_path, 'w', encoding='utf-8') as f: f.writelines(lines)
 
+def set_resolution(x, y):
+    lines = open(config_path, 'r', encoding='utf-8').readlines() if os.path.exists(config_path) else ['']
+    lines[1] = f"x={x}\n"
+    lines[2] = f"y={y}\n"
+    with open(config_path, 'w', encoding='utf-8') as f: f.writelines(lines)
 
-def get_current_language(config_path="config/qb.cfg"):
+def get_current_language():
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -40,6 +42,15 @@ def get_current_language(config_path="config/qb.cfg"):
                     return line.strip().split("=", 1)[1]
     return "ru"
 
+def get_current_resolution():
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("x="):
+                    x = line.strip().split("=", 1)[1]
+                if line.startswith("y="):
+                    y = line.strip().split("=", 1)[1]
+    return int(x), int(y)
 
 class SettingsWindow(QDialog):
     def __init__(self, parent=None):
@@ -86,7 +97,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("qb")
-        self.setGeometry(100, 100, 800, 600)
+        x,y = get_current_resolution()
+        self.setGeometry(100, 100, x, y)
         self.setWindowIcon(QIcon("icon.png"))
         
         global current_language
@@ -96,7 +108,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.tabCloseRequested.connect(self.close_tab)
         self.setCentralWidget(self.tab_widget)
-        
+
         self.toolbar = self.addToolBar("Navigation")
         
         self.back_action = QAction(get_locale("bk"), self)
@@ -121,6 +133,10 @@ class MainWindow(QMainWindow):
         self.search_button = QPushButton(get_locale("gsearch"), self)
         self.search_button.clicked.connect(self.on_search)
         self.toolbar.addWidget(self.search_button)
+
+        self.voice_button = QPushButton("🎙️", self)
+        self.voice_button.clicked.connect(self.callvoice)
+        self.toolbar.addWidget(self.voice_button)
         
         right_spacer = QWidget()
         right_spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -196,6 +212,13 @@ class MainWindow(QMainWindow):
             current_browser.setUrl(QUrl(search_url))
             self.update_actions()
     
+    def callvoice(self):
+        query = voice()
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and query:
+            current_browser.setUrl(QUrl(f"https://google.com/search?q={query}"))
+            self.update_actions()
+
     def close_tab(self, index):
         if self.tab_widget.count() == 1:
             exit()
@@ -219,6 +242,10 @@ class MainWindow(QMainWindow):
             if current_title == "Loading..." or current_title == get_locale("ntab"):
                 self.tab_widget.setTabText(i, get_locale("ntab"))
 
+    def closeEvent(self, a0):
+        x = self.width()
+        y = self.height()
+        set_resolution(x,y)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
