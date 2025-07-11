@@ -107,11 +107,11 @@ class SettingsWindow(QDialog):
         self.github_button.clicked.connect(partial(self.openlink, "https://github.com/qualzed/qBrowser"))
         layout.addWidget(self.github_button)
 
-        self.history_button = QPushButton("History")
+        self.history_button = QPushButton(get_locale("hst"))
         self.history_button.clicked.connect(self.OpenHistory)
         layout.addWidget(self.history_button)
 
-        self.uicustom_button = QPushButton("UI customization")
+        self.uicustom_button = QPushButton(get_locale("uic"))
         self.uicustom_button.clicked.connect(self.OpenCustom)
         layout.addWidget(self.uicustom_button)
 
@@ -352,12 +352,18 @@ class MainWindow(QMainWindow):
         settings_window.exec()
     
     def update_ui_texts(self):
+        sett = SettingsWindow(self)
+        ui = uiWindow(self)
         self.back_action.setText(get_locale("bk"))
         self.forward_action.setText(get_locale("fw"))
         self.search_bar.setPlaceholderText(get_locale("gstr"))
         self.search_button.setText(get_locale("gsearch"))
         self.home_action.setText(get_locale("home"))
         self.new_tab_action.setText(get_locale("ntab"))
+        sett.history_button.setText(get_locale("hst"))
+        ui.btn_bg.setText(get_locale("redactbg"))
+        ui.btn_color.setText(get_locale("redactbutton"))
+        ui.btn_button.setText(get_locale("redactcolor"))
         for i in range(self.tab_widget.count()):
             browser = self.tab_widget.widget(i)
             current_title = self.tab_widget.tabText(i)

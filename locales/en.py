@@ -5,8 +5,9 @@ en = [
     ("ntab", "New Tab"),
     ("bk", "Back"),
     ("fw", "Forward"),
+    ("uic", "UI Customization"),
     ("hst", "Browser History"),
-    ("redactcolor", "Select a color for text: "),
-    ("redactbg", "Select a color for background: "),
-    ("redactbutton", "Select a color for button: "),
+    ("redactcolor", "Select a color for text"),
+    ("redactbg", "Select a color for background"),
+    ("redactbutton", "Select a color for button"),
 ]
