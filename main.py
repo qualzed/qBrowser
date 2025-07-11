@@ -75,6 +75,7 @@ def get_current_language():
     return "ru"
 
 def get_current_resolution():
+    x = y = None
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
             for line in f:
