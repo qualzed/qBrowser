@@ -2,8 +2,8 @@ import sys
 import os
 from functools import partial
 from PyQt6.QtCore import QUrl
-from PyQt6.QtGui import QAction, QIcon
-from PyQt6.QtWidgets import QApplication, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QSpacerItem, QSizePolicy, QLineEdit, QPushButton, QDialog, QVBoxLayout, QLabel
+from PyQt6.QtGui import QAction, QIcon, QColor
+from PyQt6.QtWidgets import QApplication, QColorDialog, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QSpacerItem, QSizePolicy, QLineEdit, QPushButton, QDialog, QVBoxLayout, QLabel
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from locales.ru import ru
 from locales.en import en
@@ -13,11 +13,34 @@ search_system = 'https://google.com'
 current_language = "ru"
 config_path="config/qb.cfg"
 history_path="user/history.qb"
+ui_path="user/ui.qb"
 
 def get_locale(key):
     global current_language
     locales = {"ru": dict(ru), "en": dict(en)}
     return locales.get(current_language, locales["ru"]).get(key, "не найден")
+
+def get_ui():
+    bg, color, button = "#ffffff", "#000000", "default" 
+    with open(ui_path, "r", encoding="utf-8") as f:
+        config = dict(line.strip().split("=", 1) for line in f if "=" in line)
+        bg = config.get("bg", bg)
+        color = config.get("color", color)
+        button = config.get("button", button)
+    return bg, color, button
+
+def update_ui():
+    bg, color, button = get_ui()
+    app.setStyleSheet(f"""
+        QWidget {{
+            background-color: {bg};
+            color: {color};
+        }}
+        QPushButton {{
+            background-color: {button};
+            color: {color};
+        }}
+    """)
 
 def set_language(lang):
     global current_language
@@ -35,6 +58,13 @@ def set_resolution(x, y):
     lines[1] = f"x={x}\n"
     lines[2] = f"y={y}\n"
     with open(config_path, 'w', encoding='utf-8') as f: f.writelines(lines)
+
+def set_ui(bg, color, button):
+    lines = open(ui_path, 'r', encoding='utf-8').readlines() if os.path.exists(ui_path) else ['']
+    lines[0] = f"bg={bg}\n"
+    lines[1] = f"color={color}\n"
+    lines[2] = f"button={button}\n"
+    with open(ui_path, 'w', encoding='utf-8') as f: f.writelines(lines)
 
 def get_current_language():
     if os.path.exists(config_path):
@@ -80,6 +110,10 @@ class SettingsWindow(QDialog):
         self.history_button.clicked.connect(self.OpenHistory)
         layout.addWidget(self.history_button)
 
+        self.uicustom_button = QPushButton("UI customization")
+        self.uicustom_button.clicked.connect(self.OpenCustom)
+        layout.addWidget(self.uicustom_button)
+
         self.support_button = QPushButton("Support me (donationalerts.com)")
         self.support_button.clicked.connect(partial(self.openlink, "https://www.donationalerts.com/r/qualzed"))
         layout.addWidget(self.support_button)
@@ -93,6 +127,12 @@ class SettingsWindow(QDialog):
         if main_window:
             history_window = HistoryWindow(main_window, self)
             history_window.exec()
+
+    def OpenCustom(self):
+        main_window = self.parent()
+        if main_window:
+            ui_window = uiWindow(main_window, self)
+            ui_window.exec()
 
     def openlink(self, link):
         main_window = self.parent()
@@ -128,6 +168,47 @@ class HistoryWindow(QDialog):
     def text_changed(self, s):
         if self.main_window and s:
             self.main_window.add_new_tab(QUrl(s))
+
+class uiWindow(QDialog):
+    def __init__(self, main_window, parent=None):
+        super().__init__(parent)
+        self.main_window = main_window
+        self.setWindowTitle("UI Edit")
+        self.setGeometry(100, 100, 400, 100)
+        self.setModal(True)
+
+        self.bg = getattr(main_window, 'bg', '#ffffff')
+        self.color = getattr(main_window, 'color', '#000000')
+        self.button = getattr(main_window, 'button', '#0000ff')
+
+        layout = QVBoxLayout()
+
+        self.btn_bg = QPushButton(get_locale("redactbg"))
+        self.btn_color = QPushButton(get_locale("redactcolor"))
+        self.btn_button = QPushButton(get_locale("redactbutton"))
+        
+        self.btn_bg.clicked.connect(lambda: self.open_color_picker('bg'))
+        self.btn_color.clicked.connect(lambda: self.open_color_picker('color'))
+        self.btn_button.clicked.connect(lambda: self.open_color_picker('button'))
+
+        layout.addWidget(self.btn_bg)
+        layout.addWidget(self.btn_color)
+        layout.addWidget(self.btn_button)
+
+        self.setLayout(layout)
+
+    def open_color_picker(self, param):
+        color = QColorDialog.getColor(QColor(getattr(self, param)), self, get_locale("selectcolor"))
+        if color.isValid():
+            setattr(self, param, color.name())
+            set_ui(self.bg, self.color, self.button)
+            update_ui()
+
+    def accept(self):
+        self.main_window.bg = self.bg
+        self.main_window.color = self.color
+        self.main_window.button = self.button
+        super().accept()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -304,5 +385,6 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow()
+    update_ui()
     window.show()
     app.exec()
