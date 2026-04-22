@@ -5,9 +5,17 @@ from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QAction, QIcon, QColor
 from PyQt6.QtWidgets import QApplication, QColorDialog, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QSpacerItem, QSizePolicy, QLineEdit, QPushButton, QDialog, QVBoxLayout, QLabel
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from locales.ru import ru
-from locales.en import en
+from PyQt6.QtCore import qInstallMessageHandler
+from threading import Thread
+from locales.locale import en, ru
 from qb.voice import voice
+from qb import debug
+
+def message_handler(mode, context, message): # Skip chromium messages
+    if "js:" in message or "sandbox" in message:
+        pass
+
+qInstallMessageHandler(message_handler)
 
 search_system = 'https://google.com'
 current_language = "ru"
@@ -118,11 +126,21 @@ class SettingsWindow(QDialog):
         self.support_button = QPushButton("Support me (donationalerts.com)")
         self.support_button.clicked.connect(partial(self.openlink, "https://www.donationalerts.com/r/qualzed"))
         layout.addWidget(self.support_button)
+
+        self.debug_button = QPushButton(get_locale("dbg"))
+        self.debug_button.clicked.connect(self.LaunchDebug)
+        layout.addWidget(self.debug_button)
         
         layout.addStretch()
         
         self.setLayout(layout)
     
+    def LaunchDebug(self):
+        if(debug.debug_bool):
+            debug.debug_bool = False
+        else:
+            debug.debug_bool = True
+
     def OpenHistory(self):
         main_window = self.parent()
         if main_window:
@@ -209,8 +227,7 @@ class uiWindow(QDialog):
         self.main_window.bg = self.bg
         self.main_window.color = self.color
         self.main_window.button = self.button
-        super().accept()
-
+        super().accept()        
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()

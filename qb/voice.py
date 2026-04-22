@@ -1,4 +1,5 @@
 import speech_recognition as sr
+from qb import debug
 
 r = sr.Recognizer()
 mic = sr.Microphone()
@@ -18,6 +19,11 @@ def voice():
         if lang == "ru": speech = r.recognize_google(audio, language="ru-RU")
         elif lang == "en": speech = r.recognize_google(audio, language="en-EN")
 
+        debug.debug_bool
+        if(debug.debug_bool):
+            print(f'MIC. DEBUG: {speech}')
+
         return speech
+    
     except Exception as e:
         print(e)
