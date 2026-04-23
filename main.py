@@ -83,7 +83,7 @@ def get_current_language(): # getting current language
     return "ru"
 
 def get_current_resolution(): # get current resolution and save
-    x = y = "400", "200" # Default resolution
+    x, y = "400", "200" # Default resolution
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -199,7 +199,7 @@ class HistoryWindow(QDialog): # Default history
     def text_changed(self, s):
         if self.main_window and s:
             self.main_window.add_new_tab(QUrl(s))
-
+            
 class uiWindow(QDialog): # UI settings
     def __init__(self, main_window, parent=None):
         super().__init__(parent)
@@ -362,7 +362,7 @@ class MainWindow(QMainWindow): # The base
         current_browser = self.tab_widget.currentWidget()
         query = self.search_bar.text().strip()
         if current_browser and query:
-            search_url = f"https://www.google.com/search?q={query}"
+            search_url = f"{search.GetCurrentSearchEngine(2)}/search?q={query}"
             current_browser.setUrl(QUrl(search_url))
             self.AddHistory(search_url)
             self.update_actions()
@@ -375,7 +375,7 @@ class MainWindow(QMainWindow): # The base
         query = voice()
         current_browser = self.tab_widget.currentWidget()
         if current_browser and query:
-            current_browser.setUrl(QUrl(f"https://google.com/search?q={query}"))
+            current_browser.setUrl(QUrl(f"{search.GetCurrentSearchEngine(2)}/search?q={query}"))
             self.update_actions()
 
     def close_tab(self, index):
