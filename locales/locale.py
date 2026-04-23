@@ -1,6 +1,6 @@
 en = [
     ("gsearch", "🔍"),
-    ("gstr", "Search Google"),
+    ("gstr", "Search"),
     ("home", "Home"),
     ("ntab", "New Tab"),
     ("bk", "Back"),
@@ -15,7 +15,7 @@ en = [
 
 ru = [
     ("gsearch", "🔍"),
-    ("gstr", "Поиск с Google"),
+    ("gstr", "Поиск"),
     ("home", "Домой"),
     ("ntab", "Новая вкладка"),
     ("bk", "Назад"),

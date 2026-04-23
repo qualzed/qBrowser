@@ -8,27 +8,27 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtCore import qInstallMessageHandler
 from threading import Thread
 from locales.locale import en, ru
+from qb.core import *
 from qb.voice import voice
 from qb import debug
+from qb import resolution
+from qb import vcheck
+from qb import search
 
 def message_handler(mode, context, message): # Skip chromium messages
     if "js:" in message or "sandbox" in message:
         pass
+    elif " " in message: # Full turned off logs
+        pass
 
 qInstallMessageHandler(message_handler)
 
-search_system = 'https://google.com'
-current_language = "ru"
-config_path="config/qb.cfg"
-history_path="user/history.qb"
-ui_path="user/ui.qb"
-
-def get_locale(key):
+def get_locale(key): # Checking locale
     global current_language
     locales = {"ru": dict(ru), "en": dict(en)}
     return locales.get(current_language, locales["ru"]).get(key, "не найден")
 
-def get_ui():
+def get_ui(): # Reading UI
     bg, color, button = "#ffffff", "#000000", "default" 
     with open(ui_path, "r", encoding="utf-8") as f:
         config = dict(line.strip().split("=", 1) for line in f if "=" in line)
@@ -37,7 +37,7 @@ def get_ui():
         button = config.get("button", button)
     return bg, color, button
 
-def update_ui():
+def update_ui(): # Update UI after saving
     bg, color, button = get_ui()
     app.setStyleSheet(f"""
         QWidget {{
@@ -50,7 +50,7 @@ def update_ui():
         }}
     """)
 
-def set_language(lang):
+def set_language(lang): # languages
     global current_language
     match lang: 
         case "en": current_language = "en"
@@ -61,20 +61,20 @@ def set_language(lang):
     lines[0] = f"language={current_language}\n"
     with open(config_path, 'w', encoding='utf-8') as f: f.writelines(lines)
 
-def set_resolution(x, y):
+def set_resolution(x, y): # Save resolution to qb\qb.cfg
     lines = open(config_path, 'r', encoding='utf-8').readlines() if os.path.exists(config_path) else ['']
     lines[1] = f"x={x}\n"
     lines[2] = f"y={y}\n"
     with open(config_path, 'w', encoding='utf-8') as f: f.writelines(lines)
 
-def set_ui(bg, color, button):
+def set_ui(bg, color, button): # set UI function
     lines = open(ui_path, 'r', encoding='utf-8').readlines() if os.path.exists(ui_path) else ['']
     lines[0] = f"bg={bg}\n"
     lines[1] = f"color={color}\n"
     lines[2] = f"button={button}\n"
     with open(ui_path, 'w', encoding='utf-8') as f: f.writelines(lines)
 
-def get_current_language():
+def get_current_language(): # getting current language
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -82,8 +82,8 @@ def get_current_language():
                     return line.strip().split("=", 1)[1]
     return "ru"
 
-def get_current_resolution():
-    x = y = None
+def get_current_resolution(): # get current resolution and save
+    x = y = "400", "200" # Default resolution
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -93,7 +93,7 @@ def get_current_resolution():
                     y = line.strip().split("=", 1)[1]
     return int(x), int(y)
 
-class SettingsWindow(QDialog):
+class SettingsWindow(QDialog): # Settings UI menu
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(get_locale("settings") if get_locale("settings") != "не найден" else "Settings")
@@ -110,6 +110,12 @@ class SettingsWindow(QDialog):
         self.language_combo.setCurrentText("Русский" if current_language == "ru" else "English")
         self.language_combo.currentTextChanged.connect(self.on_language_changed)
         layout.addWidget(self.language_combo)
+
+        self.search_engine = QComboBox()
+        self.search_engine.addItems(search.SearchEngines())
+        self.search_engine.setCurrentText(search.GetCurrentSearchEngine(1))
+        self.search_engine.currentTextChanged.connect(search.on_search_changed)
+        layout.addWidget(self.search_engine)
 
         self.github_button = QPushButton("Source Code")
         self.github_button.clicked.connect(partial(self.openlink, "https://github.com/qualzed/qBrowser"))
@@ -167,7 +173,7 @@ class SettingsWindow(QDialog):
             if main_window:
                 main_window.update_ui_texts()
 
-class HistoryWindow(QDialog):
+class HistoryWindow(QDialog): # Default history
     def __init__(self, main_window, parent=None):
         super().__init__(parent)
         self.main_window = main_window
@@ -188,7 +194,7 @@ class HistoryWindow(QDialog):
         if self.main_window and s:
             self.main_window.add_new_tab(QUrl(s))
 
-class uiWindow(QDialog):
+class uiWindow(QDialog): # UI settings
     def __init__(self, main_window, parent=None):
         super().__init__(parent)
         self.main_window = main_window
@@ -228,11 +234,14 @@ class uiWindow(QDialog):
         self.main_window.color = self.color
         self.main_window.button = self.button
         super().accept()        
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow): # The base
     def __init__(self):
         super().__init__()
         self.setWindowTitle("qBrowser")
         x,y = get_current_resolution()
+        if x > resolution.width-65 or y > resolution.height-65:
+            x = int(resolution.width / 2)
+            y = int(resolution.height / 2)
         self.setGeometry(100, 100, x, y)
         self.setWindowIcon(QIcon("icon.png"))
         
@@ -295,7 +304,7 @@ class MainWindow(QMainWindow):
     
     def add_new_tab(self, url=None):
         browser = QWebEngineView()
-        browser.setUrl(url if url else QUrl(search_system))
+        browser.setUrl(url if url else QUrl(search.GetCurrentSearchEngine(2)))
         browser.titleChanged.connect(self.update_tab_title)
         browser.loadFinished.connect(self.update_actions)
         index = self.tab_widget.addTab(browser, get_locale("ntab"))
@@ -332,7 +341,7 @@ class MainWindow(QMainWindow):
     def on_home(self):
         current_browser = self.tab_widget.currentWidget()
         if current_browser:
-            current_browser.setUrl(QUrl(search_system))
+            current_browser.setUrl(QUrl(search.GetCurrentSearchEngine(2)))
             self.update_actions()
     
     def on_new_tab(self):
@@ -407,6 +416,7 @@ class MainWindow(QMainWindow):
         return super().resizeEvent(a0)
 
 if __name__ == '__main__':
+    vcheck.CHECK_UPDATE() # Checking current version and version.txt from github
     app = QApplication(sys.argv)
     window = MainWindow()
     update_ui()
