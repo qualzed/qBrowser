@@ -6,7 +6,6 @@ from PyQt6.QtGui import QAction, QIcon, QColor
 from PyQt6.QtWidgets import QApplication, QColorDialog, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QSpacerItem, QSizePolicy, QLineEdit, QPushButton, QDialog, QVBoxLayout, QLabel
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtCore import qInstallMessageHandler
-from threading import Thread
 from locales.locale import en, ru
 from qb.core import *
 from qb.voice import voice
@@ -14,6 +13,7 @@ from qb import debug
 from qb import resolution
 from qb import vcheck
 from qb import search
+from qb import rpc
 
 def message_handler(mode, context, message): # Skip chromium messages
     if "js:" in message or "sandbox" in message:
@@ -116,6 +116,12 @@ class SettingsWindow(QDialog): # Settings UI menu
         self.search_engine.setCurrentText(search.GetCurrentSearchEngine(1))
         self.search_engine.currentTextChanged.connect(search.on_search_changed)
         layout.addWidget(self.search_engine)
+
+        self.discordrpc = QComboBox()
+        self.discordrpc.addItems(["RPC (On)", "RPC (Off)"])
+        self.discordrpc.setCurrentText("RPC (On)" if rpc.get_rpc() == 1 else "RPC (Off)")
+        self.discordrpc.currentTextChanged.connect(rpc.on_rpc_changed)
+        layout.addWidget(self.discordrpc)
 
         self.github_button = QPushButton("Source Code")
         self.github_button.clicked.connect(partial(self.openlink, "https://github.com/qualzed/qBrowser"))
@@ -318,7 +324,12 @@ class MainWindow(QMainWindow): # The base
                 self.tab_widget.setTabText(index, title if title else get_locale("ntab"))
     
     def update_actions(self):
-        current_browser = self.tab_widget.currentWidget()
+        current_browser = self.tab_widget.currentWidget() # Current tab
+
+        for i in range(self.tab_widget.count()):
+            current_title = self.tab_widget.tabText(i)
+            rpc.UpdateRPC(f"Browsing {current_title}") # RPC Current tab
+
         if current_browser:
             self.back_action.setEnabled(current_browser.history().canGoBack())
             self.forward_action.setEnabled(current_browser.history().canGoForward())
@@ -396,8 +407,6 @@ class MainWindow(QMainWindow): # The base
             if current_title == "Loading..." or current_title == get_locale("ntab"):
                 self.tab_widget.setTabText(i, get_locale("ntab"))
 
-
-
     def closeEvent(self, a0):
         x = self.width()
         y = self.height()
@@ -417,6 +426,7 @@ class MainWindow(QMainWindow): # The base
 
 if __name__ == '__main__':
     vcheck.CHECK_UPDATE() # Checking current version and version.txt from github
+    if rpc.get_rpc() == 1: rpc.StartRPC()
     app = QApplication(sys.argv)
     window = MainWindow()
     update_ui()

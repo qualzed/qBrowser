@@ -1,5 +1,6 @@
 import os
 from qb.core import *
+from qb import debug
 
 SearchEngine = {
     0: ("Google", "https://google.com"),
@@ -36,6 +37,7 @@ def GetCurrentSearchEngine(type: int): # 0 - ID, 1 - NAME, 2 - LINK
                     if(type == 2):
                         SearchEngineLink: str = SearchEngine[int(CFG_SEARCHENGINE)][1]
                         return SearchEngineLink
+
     if(type == 1):
         return SearchEngine[0][0]
     if(type == 2):
@@ -55,6 +57,7 @@ def set_search(engine):
 def on_search_changed(Engine):
     EngineIndex = GetSearchEngineIndex(Engine)
     set_search(EngineIndex)
+    if(debug.debug_bool): print(f"SearchEngine | {EngineIndex=}")
 
 # GetSearchEngineName(0)
 # SearchEngineList()
