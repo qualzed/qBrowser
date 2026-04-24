@@ -328,7 +328,10 @@ class MainWindow(QMainWindow): # The base
 
         for i in range(self.tab_widget.count()):
             current_title = self.tab_widget.tabText(i)
-            rpc.UpdateRPC(f"Browsing {current_title}") # RPC Current tab
+            try: # Crash fix 23.04.2026
+                rpc.UpdateRPC(f"Browsing {current_title}") # RPC Current tab
+            except:
+                pass
 
         if current_browser:
             self.back_action.setEnabled(current_browser.history().canGoBack())
