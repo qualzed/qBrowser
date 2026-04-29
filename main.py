@@ -3,17 +3,14 @@ import os
 from functools import partial
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QAction, QIcon, QColor
-from PyQt6.QtWidgets import QApplication, QColorDialog, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QSpacerItem, QSizePolicy, QLineEdit, QPushButton, QDialog, QVBoxLayout, QLabel
+from PyQt6.QtWidgets import QApplication, QColorDialog, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QSizePolicy, QLineEdit, QPushButton, QDialog, QVBoxLayout, QLabel
 from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 from PyQt6.QtCore import qInstallMessageHandler
 from locales.locale import en, ru
 from qb.core import *
 from qb.voice import voice
-from qb import debug
-from qb import resolution
-from qb import vcheck
-from qb import search
-from qb import rpc
+from qb import debug, resolution, vcheck, search, rpc
 
 def message_handler(mode, context, message): # Skip chromium messages
     if "js:" in message or "sandbox" in message:
@@ -38,7 +35,10 @@ def get_ui(): # Reading UI
     return bg, color, button
 
 def update_ui(): # Update UI after saving
+    button_text_color = "#FFFFFF"
     bg, color, button = get_ui()
+    if int(button[1:], 16) > int(color[1:], 16): # If the button is white and text white too - it will invert it
+        button_text_color = "#000000"
     app.setStyleSheet(f"""
         QWidget {{
             background-color: {bg};
@@ -46,7 +46,7 @@ def update_ui(): # Update UI after saving
         }}
         QPushButton {{
             background-color: {button};
-            color: {color};
+            color: {button_text_color};
         }}
     """)
 
@@ -150,8 +150,10 @@ class SettingsWindow(QDialog): # Settings UI menu
     def LaunchDebug(self):
         if(debug.debug_bool):
             debug.debug_bool = False
+            os.system("qb\sendMessage.exe \"DEBUG LOG\" \"You turned off debuging\" 0")
         else:
             debug.debug_bool = True
+            os.system("qb\sendMessage.exe \"DEBUG LOG\" \"You turned on debuging\" 0")
 
     def OpenHistory(self):
         main_window = self.parent()
@@ -210,7 +212,7 @@ class uiWindow(QDialog): # UI settings
 
         self.bg = getattr(main_window, 'bg', '#ffffff')
         self.color = getattr(main_window, 'color', '#000000')
-        self.button = getattr(main_window, 'button', '#0000ff')
+        self.button = getattr(main_window, 'button', "#101010")
 
         layout = QVBoxLayout()
 
@@ -243,12 +245,26 @@ class uiWindow(QDialog): # UI settings
 class MainWindow(QMainWindow): # The base
     def __init__(self):
         super().__init__()
+
+        # Cookies
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        storage_path = os.path.join(base_dir, "user", "data")
+        os.makedirs(storage_path, exist_ok=True)
+        self.profile = QWebEngineProfile("StorageData", self)
+        self.profile.setPersistentStoragePath(storage_path)
+        self.profile.setCachePath(storage_path)
+        self.profile.setPersistentCookiesPolicy(
+            QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
+        )
+        
+        # Fix window resolution
         self.setWindowTitle("qBrowser")
         x,y = get_current_resolution()
         if x > resolution.width-65 or y > resolution.height-65:
             x = int(resolution.width / 2)
             y = int(resolution.height / 2)
         self.setGeometry(100, 100, x, y)
+
         self.setWindowIcon(QIcon("icon.png"))
         
         global current_language
@@ -310,6 +326,10 @@ class MainWindow(QMainWindow): # The base
     
     def add_new_tab(self, url=None):
         browser = QWebEngineView()
+
+        new_page = QWebEnginePage(self.profile, browser) # For cookies
+        browser.setPage(new_page)
+
         browser.setUrl(url if url else QUrl(search.GetCurrentSearchEngine(2)))
         browser.titleChanged.connect(self.update_tab_title)
         browser.loadFinished.connect(self.update_actions)
@@ -328,10 +348,11 @@ class MainWindow(QMainWindow): # The base
 
         for i in range(self.tab_widget.count()):
             current_title = self.tab_widget.tabText(i)
-            try: # Crash fix 23.04.2026
-                rpc.UpdateRPC(f"Browsing {current_title}") # RPC Current tab
-            except:
-                pass
+            if(rpc.get_rpc() == 1): # if RPC On
+                try: # Crash fix 23.04.2026
+                    rpc.UpdateRPC(f"Browsing {current_title}") # RPC Current tab
+                except:
+                    pass
 
         if current_browser:
             self.back_action.setEnabled(current_browser.history().canGoBack())
@@ -365,7 +386,15 @@ class MainWindow(QMainWindow): # The base
         current_browser = self.tab_widget.currentWidget()
         query = self.search_bar.text().strip()
         if current_browser and query:
-            search_url = f"{search.GetCurrentSearchEngine(2)}/search?q={query}"
+
+            if not search.IsDomain(query): # Domain Fix 29.04.2026
+                search_url = f"{search.GetCurrentSearchEngine(2)}/search?q={query}"
+            else:
+                if not query.startswith(('http://', 'https://')):
+                    search_url = f"https://{query}"
+                else:
+                    search_url = f"{query}"
+
             current_browser.setUrl(QUrl(search_url))
             self.AddHistory(search_url)
             self.update_actions()
@@ -422,8 +451,8 @@ class MainWindow(QMainWindow): # The base
         self.search_bar.setMinimumWidth(int(x / 2.0))
         self.search_bar.setMaximumWidth(int(x))
 
-        if(x < 800):
-            self.setGeometry(100, 100, 800, y)
+        if(x < 500):
+            self.setGeometry(100, 100, 500, y)
 
         return super().resizeEvent(a0)
 

@@ -3,7 +3,7 @@ import os, time
 from qb.core import *
 from qb import debug
 
-client_id = "1496895954186670102"
+client_id = ""
 RPC = Presence(client_id)
 RPC.connect()
 
