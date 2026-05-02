@@ -3,14 +3,16 @@ import os
 from functools import partial
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QAction, QIcon, QColor
-from PyQt6.QtWidgets import QApplication, QColorDialog, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QSizePolicy, QLineEdit, QPushButton, QDialog, QVBoxLayout, QLabel
+from PyQt6.QtWidgets import QApplication, QColorDialog, QListWidget, QMainWindow, QTabWidget, QComboBox, QWidget, QSizePolicy, QLineEdit, QPushButton, QDialog, QVBoxLayout, QLabel, QProgressBar
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
-from PyQt6.QtCore import qInstallMessageHandler
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtCore import qInstallMessageHandler, Qt, QTimer
 from locales.locale import en, ru
 from qb.core import *
 from qb.voice import voice
-from qb import debug, resolution, vcheck, search, rpc
+from qb import debug, resolution, tabs, vcheck, search, rpc
 
 def message_handler(mode, context, message): # Skip chromium messages
     if "js:" in message or "sandbox" in message:
@@ -19,6 +21,7 @@ def message_handler(mode, context, message): # Skip chromium messages
         pass
 
 qInstallMessageHandler(message_handler)
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-web-security --ignore-certificate-errors"
 
 def get_locale(key): # Checking locale
     global current_language
@@ -242,7 +245,8 @@ class uiWindow(QDialog): # UI settings
         self.main_window.color = self.color
         self.main_window.button = self.button
         super().accept()        
-class MainWindow(QMainWindow): # The base
+
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
@@ -256,6 +260,59 @@ class MainWindow(QMainWindow): # The base
         self.profile.setPersistentCookiesPolicy(
             QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
         )
+        
+
+
+        # Download 29.04.2026
+        self.profile.downloadRequested.connect(self.on_download_requested)
+        self.web_page = QWebEnginePage(self.profile, self)
+        self.browser = QWebEngineView()
+        self.browser.setPage(self.web_page) 
+        settings = self.browser.settings()
+        settings.setAttribute(settings.WebAttribute.JavascriptCanOpenWindows, True)
+        settings.setAttribute(settings.WebAttribute.LocalStorageEnabled, True)
+
+        self.statusBar().setVisible(False)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False) # Скрыт по умолчанию
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #333;
+                border-radius: 4px;
+                text-align: center;
+                background-color: #111;
+                color: white;
+                max-height: 14px;
+            }
+            QProgressBar::chunk {
+                background-color: #18ca27;
+            }
+        """)
+        self.statusBar().addPermanentWidget(self.progress_bar, 1)
+        self.dl_timer = QTimer(self)
+        self.dl_timer.timeout.connect(self._track_dl)
+
+        self.cancel_btn = QPushButton("✕")
+        self.cancel_btn.setFixedSize(20, 20)
+        self.cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #333;
+                color: white;
+                border-radius: 10px;
+                font-weight: bold;
+                font-size: 10px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #ff3333;
+            }
+        """)
+        self.cancel_btn.clicked.connect(self.cancel_download)
+        self.cancel_btn.setVisible(False)
+        self.statusBar().addPermanentWidget(self.cancel_btn)
+
+
         
         # Fix window resolution
         self.setWindowTitle("qBrowser")
@@ -322,8 +379,74 @@ class MainWindow(QMainWindow): # The base
         
         self.tab_widget.currentChanged.connect(self.update_actions)
         
-        self.add_new_tab()
+        if vcheck.NEW_VERSION_AVIABLE(): # Checking current version
+            self.add_new_tab(QUrl.fromLocalFile(os.path.abspath(update_path)))
+            
+            saved_tabs = tabs.ReadTabs()
+            if saved_tabs is None:
+                self.add_new_tab()
+            else:
+                for link in saved_tabs:
+                    self.add_new_tab(QUrl(link))
+        else:
+            if saved_tabs is None:
+                self.add_new_tab()
+            else:
+                for link in saved_tabs:
+                    self.add_new_tab(QUrl(link))
     
+
+
+    def on_download_requested(self, download):
+        self._current_download = download 
+        path, _ = QFileDialog.getSaveFileName(self, "Save File", download.suggestedFileName())
+        
+        if path:
+            download.setDownloadDirectory(os.path.dirname(path))
+            download.setDownloadFileName(os.path.basename(path))
+            download.accept()
+
+            self.statusBar().setVisible(True)
+            self.progress_bar.setVisible(True)
+            self.cancel_btn.setVisible(True)
+            
+            self.progress_bar.setValue(0)
+            self.statusBar().showMessage(f"Downloading: {download.suggestedFileName()}")
+            self.dl_timer.start(200) 
+        else:
+            download.cancel()
+
+    def _track_dl(self):
+        if self._current_download:
+            received = self._current_download.receivedBytes()
+            total = self._current_download.totalBytes()
+            
+            if total > 0:
+                p = int((received / total) * 100)
+                self.progress_bar.setValue(p)
+            else:
+                self.progress_bar.setRange(0, 0)
+
+            state = self._current_download.state().value
+            if state >= 2:
+                self.dl_timer.stop()
+                self.statusBar().setVisible(False)
+                self.cancel_btn.setVisible(False)
+                self._current_download = None
+        else:
+            self.dl_timer.stop()
+            self.progress_bar.setVisible(False)
+
+    def cancel_download(self):
+        if self._current_download:
+            self._current_download.cancel() # Отменяем в движке
+            self.dl_timer.stop()
+            self.statusBar().setVisible(False)
+            self.cancel_btn.setVisible(False)
+            self._current_download = None
+            self.statusBar().showMessage("Download canceled", 2000)
+
+
     def add_new_tab(self, url=None):
         browser = QWebEngineView()
 
@@ -337,6 +460,9 @@ class MainWindow(QMainWindow): # The base
         self.tab_widget.setCurrentIndex(index)
     
     def update_tab_title(self, title):
+        if len(title) > 16: # No long titles
+            title = title[:16] + "..."
+            
         browser = self.sender()
         if browser:
             index = self.tab_widget.indexOf(browser)
@@ -346,17 +472,17 @@ class MainWindow(QMainWindow): # The base
     def update_actions(self):
         current_browser = self.tab_widget.currentWidget() # Current tab
 
-        for i in range(self.tab_widget.count()):
-            current_title = self.tab_widget.tabText(i)
-            if(rpc.get_rpc() == 1): # if RPC On
-                try: # Crash fix 23.04.2026
-                    rpc.UpdateRPC(f"Browsing {current_title}") # RPC Current tab
-                except:
-                    pass
-
         if current_browser:
+            for i in range(self.tab_widget.count()):
+                current_title = self.tab_widget.tabText(i)
+                if(rpc.get_rpc() == 1): # if RPC On
+                    try: # Crash fix 23.04.2026
+                        rpc.UpdateRPC(f"Browsing {current_title}") # RPC Current tab
+                    except:
+                        pass
+
             self.back_action.setEnabled(current_browser.history().canGoBack())
-            self.forward_action.setEnabled(current_browser.history().canGoForward())
+            self.forward_action.setEnabled(current_browser.history().canGoForward())            
         else:
             self.back_action.setEnabled(False)
             self.forward_action.setEnabled(False)
@@ -439,7 +565,15 @@ class MainWindow(QMainWindow): # The base
             if current_title == "Loading..." or current_title == get_locale("ntab"):
                 self.tab_widget.setTabText(i, get_locale("ntab"))
 
-    def closeEvent(self, a0):
+    def closeEvent(self, a0): # Close window
+        tab_list = []
+        for i in range(self.tab_widget.count()):
+            browser = self.tab_widget.widget(i)
+            tab_url = browser.url().toString()
+            tab_list.append(tab_url)
+            final_tab_list = "\n".join(tab_list)
+            tabs.SaveTabs(final_tab_list)
+
         x = self.width()
         y = self.height()
         set_resolution(x,y)
@@ -457,7 +591,6 @@ class MainWindow(QMainWindow): # The base
         return super().resizeEvent(a0)
 
 if __name__ == '__main__':
-    vcheck.CHECK_UPDATE() # Checking current version and version.txt from github
     if rpc.get_rpc() == 1: rpc.StartRPC()
     app = QApplication(sys.argv)
     window = MainWindow()

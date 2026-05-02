@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/update_style.css">
+    <title>qBrowser</title>
+</head>
+<body>
+
+<div class="HeaderMenu">
+    <h1 class="TextHeader">New qBrowser update available</h1> 
+</div>
+
+<div class="BodyMenu">
+    <div class="desc">
+        Explore new features and improvements in the latest qBrowser.
+        <br>
+        Current version: <span class="ActualVersion">Loading...</span>
+    </div>
+    <a href="https://github.com/qualzed/qBrowser">
+        <button class="github_btn">View on GitHub</button>
+    </a>
+</div>
+
+<script>
+async function fetchVersion() {
+    const versionUrl = "https://raw.githubusercontent.com/qualzed/qBrowser/refs/heads/main/version.txt";
+    const versionElement = document.querySelector('.ActualVersion');
+
+    if (!versionElement) return;
+
+    try {
+        const response = await fetch(versionUrl);
+        if (!response.ok) throw new Error('Network error');
+        
+        const versionText = await response.text();
+        versionElement.textContent = versionText.trim();
+    } catch (error) {
+        console.error('Error fetching version:', error);
+        versionElement.textContent = "error: " + error.message; 
+    }
+
+}
+
+fetchVersion();
+</script>
+
+</body>
+</html>

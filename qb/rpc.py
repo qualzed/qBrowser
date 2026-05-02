@@ -5,7 +5,10 @@ from qb import debug
 
 client_id = ""
 RPC = Presence(client_id)
-RPC.connect()
+try:
+    RPC.connect()
+except:
+    pass
 
 start_time = time.time()
 
