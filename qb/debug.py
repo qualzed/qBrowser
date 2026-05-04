@@ -10,8 +10,8 @@ paths = {
 
 def DebugSwitch(state: bool):
     if(state):
-        os.system(f"start cmd /k {paths[debug_version]} --debug")
+        os.system(f"start cmd /c {paths[debug_version]} --debug")
     else:
-        os.system(f"start cmd /k {paths[debug_version]}")
+        os.system(f"start {paths[debug_version]}") # With source code it will open console
 
     exit(0) # Close previous window cause new window was created
