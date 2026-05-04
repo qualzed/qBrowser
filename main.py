@@ -12,7 +12,7 @@ from PyQt6.QtCore import qInstallMessageHandler, Qt, QTimer
 from locales.locale import en, ru
 from qb.core import *
 from qb.voice import voice
-from qb import debug, resolution, tabs, vcheck, search, rpc
+from qb import debug, resolution, tabs, vcheck, search, rpc, args
 
 def message_handler(mode, context, message): # Skip chromium messages
     if "js:" in message or "sandbox" in message:
@@ -153,9 +153,11 @@ class SettingsWindow(QDialog): # Settings UI menu
     def LaunchDebug(self):
         if(debug.debug_bool):
             debug.debug_bool = False
+            debug.DebugSwitch(debug.debug_bool)
             os.system("qb\sendMessage.exe \"DEBUG LOG\" \"You turned off debuging\" 0")
         else:
             debug.debug_bool = True
+            debug.DebugSwitch(debug.debug_bool)
             os.system("qb\sendMessage.exe \"DEBUG LOG\" \"You turned on debuging\" 0")
 
     def OpenHistory(self):
@@ -379,10 +381,10 @@ class MainWindow(QMainWindow):
         
         self.tab_widget.currentChanged.connect(self.update_actions)
         
+        saved_tabs = tabs.ReadTabs()
         if vcheck.NEW_VERSION_AVIABLE(): # Checking current version
             self.add_new_tab(QUrl.fromLocalFile(os.path.abspath(update_path)))
             
-            saved_tabs = tabs.ReadTabs()
             if saved_tabs is None:
                 self.add_new_tab()
             else:
@@ -592,6 +594,7 @@ class MainWindow(QMainWindow):
 
 if __name__ == '__main__':
     if rpc.get_rpc() == 1: rpc.StartRPC()
+    args.CheckArguments()
     app = QApplication(sys.argv)
     window = MainWindow()
     update_ui()
