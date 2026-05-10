@@ -19,9 +19,7 @@ def voice():
         if lang == "ru": speech = r.recognize_google(audio, language="ru-RU")
         elif lang == "en": speech = r.recognize_google(audio, language="en-EN")
 
-        debug.debug_bool
-        if(debug.debug_bool):
-            print(f'MIC. DEBUG: {speech}')
+        debug.debug("Voice", speech)
 
         return speech
     

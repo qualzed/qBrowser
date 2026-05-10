@@ -3,7 +3,7 @@ import os, time
 from qb.core import *
 from qb import debug
 
-client_id = ""
+client_id = "1496895954186670102"
 RPC = Presence(client_id)
 try:
     RPC.connect()
@@ -25,15 +25,18 @@ def set_rpc(rpc: bool):
     lines = open(config_path, 'r', encoding='utf-8').readlines() if os.path.exists(config_path) else ['']
     lines[4] = f"rpc={int(rpc)}\n"
     with open(config_path, 'w', encoding='utf-8') as f: f.writelines(lines)
+    debug.debug("RPC CFG update", config_path, lines)
 
 def on_rpc_changed(rpc_text):
+    state = False
     if(rpc_text == "RPC (On)"):
-        set_rpc(True)
+        state = True
+        set_rpc(state)
         StartRPC()
-        if(debug.debug_bool): print(f"RPC: RPC ON | {rpc_text=} ")
     else:
-        set_rpc(False)
-        if(debug.debug_bool): print(f"RPC: RPC OFF | {rpc_text=}")
+        set_rpc(state)
+
+    debug.debug("RPC", rpc_text, state)
 
 def StartRPC():
     try:

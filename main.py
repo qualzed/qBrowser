@@ -189,6 +189,8 @@ class SettingsWindow(QDialog): # Settings UI menu
 class HistoryWindow(QDialog): # Default history
     def __init__(self, main_window, parent=None):
         super().__init__(parent)
+        self.currentTab = None
+
         self.main_window = main_window
         self.setWindowTitle("History")
         self.setGeometry(100, 100, 600, 600)
@@ -203,9 +205,29 @@ class HistoryWindow(QDialog): # Default history
 
         self.setLayout(layout)
 
+        self.delete_button = QPushButton(get_locale("del"))
+        self.delete_button.clicked.connect(lambda: self.deleteHistoryTab(self.currentTab))
+        layout.addWidget(self.delete_button)
+
+        self.clear_button = QPushButton(get_locale("clr"))
+        self.clear_button.clicked.connect(lambda: self.clearHistory())
+        layout.addWidget(self.clear_button)
+
+    def deleteHistoryTab(self, tab: str):
+        with open(history_path, "r") as f:
+            lines = f.readlines()
+        with open(history_path, "w") as f:
+            [f.write(l) for l in lines if tab not in l]
+        self.hst.takeItem(self.hst.currentRow())
+
+    def clearHistory(self):
+        open(history_path, 'w').close()
+        self.hst.clear()
+
     def text_changed(self, s):
         if self.main_window and s:
-            self.main_window.add_new_tab(QUrl(s))
+            self.currentTab = s # 10.05.2026
+            # self.main_window.add_new_tab(QUrl(s)) # 10.05.2026
             
 class uiWindow(QDialog): # UI settings
     def __init__(self, main_window, parent=None):
@@ -522,6 +544,8 @@ class MainWindow(QMainWindow):
                     search_url = f"https://{query}"
                 else:
                     search_url = f"{query}"
+
+            debug.debug("Search debug", query)
 
             current_browser.setUrl(QUrl(search_url))
             self.AddHistory(search_url)
